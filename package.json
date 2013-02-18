@@ -1,6 +1,6 @@
 {
   "name": "mozpay",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "fulfill web payments with navigator.mozPay()",
   "keywords": [
     "open",
@@ -15,7 +15,7 @@
   "main": "lib/mozpay",
   "engines": {
     "node": ">= 0.6.17",
-    "npm": "1.1.x"
+    "npm": ">= 1.2.x"
   },
   "dependencies": {
     "jwt-simple": "0.1.0"
