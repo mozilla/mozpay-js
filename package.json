@@ -1,7 +1,7 @@
 {
   "name": "mozpay",
   "version": "0.0.1",
-  "description": "fulfill navigator.mozPay() web payments",
+  "description": "fulfill web payments with navigator.mozPay()",
   "keywords": [
     "open",
     "web",
