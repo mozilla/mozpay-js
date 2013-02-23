@@ -5,21 +5,30 @@ var jwt = require('jwt-simple');
 var request = require('superagent');
 var _ = require('underscore');
 
-var config = {mozPayKey: 'my-app', mozPaySecret: 'THE SECRET',
-              mozPayAudience: 'marketplace.firefox.com',
-              mozPayType: 'mozilla-dev/payments/pay/v1',
-              mozPayRoutePrefix: '/mozpay'};
-var payRequest = {pricePoint: 1,
-                  id: 'my-product:1',
-                  name: 'Unlock Level 10',
-                  description: 'Lets you play Level 10! So fun!',
-                  productData: '',
-                  postbackURL: 'https://.../postback',
-                  chargebackURL: 'https://.../chargeback'};
-var incomingJWT = {iss: 'marketplace.firefox.com',
-                   aud: config.mozPayKey,
-                   // ...
-                   request: payRequest};
+var reqConfig = {
+  mozPayKey: 'my-app',
+  mozPaySecret: 'THE SECRET',
+};
+var config = _.defaults({}, reqConfig, {
+  mozPayAudience: 'somewhere.firefox.com',
+  mozPayType: 'mozilla-dev/payments/pay/v1',
+  mozPayRoutePrefix: '/mozpay'
+});
+var payRequest = {
+  pricePoint: 1,
+  id: 'my-product:1',
+  name: 'Unlock Level 10',
+  description: 'Lets you play Level 10! So fun!',
+  productData: '',
+  postbackURL: 'https://.../postback',
+  chargebackURL: 'https://.../chargeback'
+};
+var incomingJWT = {
+  iss: 'marketplace.firefox.com',
+  aud: config.mozPayKey,
+  // ...
+  request: payRequest
+};
 
 var pay = require('../lib/mozpay.js');
 
@@ -50,8 +59,9 @@ describe('mozpay.request', function() {
     this.request = payRequest;
     this.result = pay.request(this.request);
 
-    this.decode = function _decode() {
-      return jwt.decode(this.result, config.mozPaySecret);
+    this.decode = function _decode(result) {
+      result = result || this.result;
+      return jwt.decode(result, config.mozPaySecret);
     };
 
   });
@@ -81,8 +91,21 @@ describe('mozpay.request', function() {
   });
 
   it('should require pre-configuration', function() {
-    pay.configure(null);
+    pay._resetConfig();
     (function() { pay.request(this.request) }).should.throwError();
+  });
+
+  it('should use defaults for optional config vars', function() {
+    pay.configure({
+      mozPayKey: config.mozPayKey,
+      mozPaySecret: config.mozPaySecret,
+    });
+    var res = this.decode(pay.request(this.request));
+    res.aud.should.equal('marketplace.firefox.com');
+  });
+
+  it('should require non-optional config vars', function() {
+    (function() { pay.configure({}) }).should.throwError();
   });
 
 });
@@ -111,7 +134,7 @@ describe('mozpay.verify', function() {
   });
 
   it('should require pre-configuration', function() {
-    pay.configure(null);
+    pay._resetConfig();
     (function() {
       pay.verify(jwt.encode(makeIncoming(), config.mozPaySecret));
     }).should.throwError();
@@ -128,6 +151,9 @@ describe('mozpay.routes (config)', function() {
       post: function() {}
     };
     this.gently = new Gently();
+    this.configure = function(ob) {
+      return pay.configure(_.defaults({}, reqConfig, ob));
+    };
   });
 
   after(function() {
@@ -152,7 +178,7 @@ describe('mozpay.routes (config)', function() {
   });
 
   it('should use a prefix', function() {
-    pay.configure({mozPayRoutePrefix: '/foo'});
+    this.configure({mozPayRoutePrefix: '/foo'});
     this.gently.expect(this.app, 'post', function(url) {
       shouldBe.equal(url, '/foo/postback');
     });
@@ -160,7 +186,7 @@ describe('mozpay.routes (config)', function() {
   });
 
   it('should clean the prefix', function() {
-    pay.configure({mozPayRoutePrefix: '/foo/'});
+    this.configure({mozPayRoutePrefix: '/foo/'});
     this.gently.expect(this.app, 'post', function(url) {
       shouldBe.equal(url, '/foo/postback');
     });
@@ -168,7 +194,7 @@ describe('mozpay.routes (config)', function() {
   });
 
   it('cannot have a null prefix', function() {
-    pay.configure({mozPayRoutePrefix: null});
+    this.configure({mozPayRoutePrefix: null});
     (function() {
       pay.routes(this.app);
     }).should.throwError();
