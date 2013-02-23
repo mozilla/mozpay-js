@@ -7,6 +7,7 @@ var _ = require('underscore');
 
 var config = {mozPayKey: 'my-app', mozPaySecret: 'THE SECRET',
               mozPayAudience: 'marketplace.firefox.com',
+              mozPayType: 'mozilla-dev/payments/pay/v1',
               mozPayRoutePrefix: '/mozpay'};
 var payRequest = {pricePoint: 1,
                   id: 'my-product:1',
@@ -67,6 +68,11 @@ describe('mozpay.request', function() {
   it('should set aud to mozPayAudience', function() {
     var res = this.decode();
     res.aud.should.equal(config.mozPayAudience);
+  });
+
+  it('should set typ to mozPayType', function() {
+    var res = this.decode();
+    res.typ.should.equal(config.mozPayType);
   });
 
   it('should preserve request', function() {

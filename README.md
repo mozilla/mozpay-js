@@ -47,7 +47,10 @@ Configure it when your app starts up:
       mozPayAudience: 'marketplace.firefox.com',
       // This is an optional prefix to your postback/chargeback URLs.
       // For example, a postback would be available at https://yourapp/mozpay/postback with the default prefix.
-      mozPayRoutePrefix: '/mozpay'
+      mozPayRoutePrefix: '/mozpay',
+      // Set a custom payment type for JWTs. You only need to override this if
+      // you're working with a non-default payment provider.
+      mozPayType: 'mozilla/payments/pay/v1'
     });
 
 With an [express app object](http://expressjs.com/api.html#express), add your routes:
