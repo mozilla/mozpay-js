@@ -102,6 +102,7 @@ describe('mozpay.request', function() {
     });
     var res = this.decode(pay.request(this.request));
     res.aud.should.equal('marketplace.firefox.com');
+    res.iss.should.equal(config.mozPayKey);
   });
 
   it('should require non-optional config vars', function() {
