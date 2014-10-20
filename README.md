@@ -57,9 +57,10 @@ Configure it when your app starts up:
       supportedAlgorithms: ['HS256'],
     });
 
-With an [express app object](http://expressjs.com/api.html#express), add your routes:
+With an [express 4 app object](http://expressjs.com/api.html#express), add your routes:
 
     var express = require('express');
+    var bodyParser = require('body-parser');
     var pay = require('mozpay');
     var app = express();
 
@@ -68,6 +69,7 @@ With an [express app object](http://expressjs.com/api.html#express), add your ro
       app.use(express.bodyParser());
     });
 
+    app.use(bodyParser.json());
     pay.routes(app);
 
 You can test your postback/chargeback URLs with something like this:
