@@ -4,6 +4,7 @@ var Gently = require('gently');
 var jwt = require('jsonwebtoken');
 var request = require('superagent');
 var _ = require('underscore');
+var bodyParser = require('body-parser');
 
 var reqConfig = {
   mozPayKey: 'my-app',
@@ -224,8 +225,8 @@ describe('mozpay.routes (handlers)', function() {
     var self = this;
     pay.removeAllListeners();
     pay.configure(config);
-    this.app = express.createServer();
-    this.app.use(express.bodyParser());
+    this.app = express();
+    this.app.use(bodyParser.json());
     pay.routes(this.app);
 
     var port = 3001;
@@ -246,10 +247,6 @@ describe('mozpay.routes (handlers)', function() {
     this.notice = function(customJWT) {
       return _.extend({}, makeIncoming(customJWT), {response: {transactionID: 'webpay-123'}});
     };
-  });
-
-  after(function() {
-    this.app.close();
   });
 
   it('must get a notice parameter', function(done) {
