@@ -69,6 +69,7 @@ With an [express 4 app object](http://expressjs.com/api.html#express), add your 
       app.use(express.bodyParser());
     });
 
+    app.use(bodyParser.urlencoded({ extended: false }));
     app.use(bodyParser.json());
     pay.routes(app);
 

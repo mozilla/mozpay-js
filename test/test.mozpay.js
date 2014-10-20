@@ -226,6 +226,7 @@ describe('mozpay.routes (handlers)', function() {
     pay.removeAllListeners();
     pay.configure(config);
     this.app = express();
+    this.app.use(bodyParser.urlencoded({ extended: false }));
     this.app.use(bodyParser.json());
     pay.routes(this.app);
 
