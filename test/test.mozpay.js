@@ -1,7 +1,7 @@
 var shouldBe = require('should');
 var express = require('express');
 var Gently = require('gently');
-var jwt = require('jwt-simple');
+var jwt = require('jsonwebtoken');
 var request = require('superagent');
 var _ = require('underscore');
 
@@ -54,39 +54,40 @@ function makeIncoming(customIn) {
 
 describe('mozpay.request', function() {
 
-  before(function() {
+  beforeEach(function() {
     pay.configure(config);
+    var self = this;
     this.request = payRequest;
     this.result = pay.request(this.request);
 
-    this.decode = function _decode(result) {
-      result = result || this.result;
-      return jwt.decode(result, config.mozPaySecret);
+    this.verify = function(result) {
+      result = result || self.result;
+      return jwt.verify(result, config.mozPaySecret);
     };
 
   });
 
   it('should encode a JWT with mozPaySecret', function() {
-    this.decode();
+    this.verify();
   });
 
   it('should set iss to mozPayKey', function() {
-    var res = this.decode();
+    var res = this.verify();
     res.iss.should.equal(config.mozPayKey);
   });
 
   it('should set aud to mozPayAudience', function() {
-    var res = this.decode();
+    var res = this.verify();
     res.aud.should.equal(config.mozPayAudience);
   });
 
   it('should set typ to mozPayType', function() {
-    var res = this.decode();
+    var res = this.verify();
     res.typ.should.equal(config.mozPayType);
   });
 
   it('should preserve request', function() {
-    var res = this.decode();
+    var res = this.verify();
     res.request.should.eql(this.request);
   });
 
@@ -100,7 +101,7 @@ describe('mozpay.request', function() {
       mozPayKey: config.mozPayKey,
       mozPaySecret: config.mozPaySecret,
     });
-    var res = this.decode(pay.request(this.request));
+    var res = this.verify(pay.request(this.request));
     res.aud.should.equal('marketplace.firefox.com');
     res.iss.should.equal(config.mozPayKey);
   });
@@ -114,31 +115,44 @@ describe('mozpay.request', function() {
 
 describe('mozpay.verify', function() {
 
-  before(function() {
+  beforeEach(function() {
     pay.configure(config);
   });
 
   it('should verify an incoming JWT', function() {
-    pay.verify(jwt.encode(makeIncoming(), config.mozPaySecret));
+    pay.verify(jwt.sign(makeIncoming(), config.mozPaySecret));
   });
 
   it('should fail with the wrong signature', function() {
     (function() {
-      pay.verify(jwt.encode(makeIncoming(), 'incorrect secret'));
-    }).should.throwError('Signature verification failed');
+      pay.verify(jwt.sign(makeIncoming(), 'incorrect secret'));
+    }).should.throwError('invalid signature');
   });
 
   it('should fail with a malformed JWT', function() {
     (function() {
-      pay.verify(jwt.encode(makeIncoming(), config.mozPaySecret) + '.garbage');
-    }).should.throwError('Not enough or too many segments');
+      pay.verify(jwt.sign(makeIncoming(), config.mozPaySecret) + '.garbage');
+    }).should.throwError('jwt malformed');
   });
 
   it('should require pre-configuration', function() {
     pay._resetConfig();
     (function() {
-      pay.verify(jwt.encode(makeIncoming(), config.mozPaySecret));
-    }).should.throwError();
+      pay.verify(jwt.sign(makeIncoming(), config.mozPaySecret));
+    }).should.throwError('configure() must be called before anything else.');
+  });
+
+  it('should fail for JWTs with a disallowed algorithm', function() {
+    (function() {
+      pay.verify(jwt.sign(makeIncoming(), config.mozPaySecret,
+                          {algorithm: 'HS384'}));
+    }).should.throwError('invalid signature');
+  });
+
+  it('should allow an override of supported algorithms', function() {
+    pay.configure(_.defaults({supportedAlgorithms: ['HS384']}, config));
+    pay.verify(jwt.sign(makeIncoming(), config.mozPaySecret,
+                        {algorithm: 'HS384'}));
   });
 
 });
@@ -146,7 +160,7 @@ describe('mozpay.verify', function() {
 
 describe('mozpay.routes (config)', function() {
 
-  before(function() {
+  beforeEach(function() {
     pay.configure(config);
     this.app = {
       post: function() {}
@@ -157,7 +171,7 @@ describe('mozpay.routes (config)', function() {
     };
   });
 
-  after(function() {
+  afterEach(function() {
     this.gently.verify();
   });
 
@@ -253,7 +267,9 @@ describe('mozpay.routes (handlers)', function() {
   });
 
   it('must get a JWT with correct signature', function(done) {
-    this.postback({notice: jwt.encode(makeIncoming(), 'wrong secret')}, function(res) {
+    this.postback({
+      notice: jwt.sign(makeIncoming(), 'wrong secret'),
+    }, function(res) {
       res.status.should.equal(400);
       done();
     });
@@ -263,7 +279,9 @@ describe('mozpay.routes (handlers)', function() {
     var notice = this.notice();
     delete notice.response;
 
-    this.postback({notice: jwt.encode(notice, config.mozPaySecret)}, function(res) {
+    this.postback({
+      notice: jwt.sign(notice, config.mozPaySecret),
+    }, function(res) {
       res.status.should.equal(400);
       done();
     });
@@ -273,7 +291,9 @@ describe('mozpay.routes (handlers)', function() {
     var notice = this.notice();
     delete notice.request;
 
-    this.postback({notice: jwt.encode(notice, config.mozPaySecret)}, function(res) {
+    this.postback({
+      notice: jwt.sign(notice, config.mozPaySecret),
+    }, function(res) {
       res.status.should.equal(400);
       done();
     });
@@ -283,7 +303,9 @@ describe('mozpay.routes (handlers)', function() {
     var notice = this.notice();
     delete notice.response.transactionID;
 
-    this.postback({notice: jwt.encode(notice, config.mozPaySecret)}, function(res) {
+    this.postback({
+      notice: jwt.sign(notice, config.mozPaySecret),
+    }, function(res) {
       res.status.should.equal(400);
       done();
     });
@@ -292,7 +314,9 @@ describe('mozpay.routes (handlers)', function() {
   it('must respond with transaction ID', function(done) {
     var notice = this.notice();
 
-    this.postback({notice: jwt.encode(notice, config.mozPaySecret)}, function(res) {
+    this.postback({
+      notice: jwt.sign(notice, config.mozPaySecret),
+    }, function(res) {
       res.status.should.equal(200);
       res.text.should.equal(notice.response.transactionID);
       done();
@@ -303,7 +327,9 @@ describe('mozpay.routes (handlers)', function() {
     var notice = this.notice();
     notice.exp = pay.now() - 80;
 
-    this.postback({notice: jwt.encode(notice, config.mozPaySecret)}, function(res) {
+    this.postback({
+      notice: jwt.sign(notice, config.mozPaySecret),
+    }, function(res) {
       res.status.should.equal(400);
       done();
     });
@@ -313,7 +339,9 @@ describe('mozpay.routes (handlers)', function() {
     var notice = this.notice();
     notice.nbf = pay.now() + 360;  // not before...
 
-    this.postback({notice: jwt.encode(notice, config.mozPaySecret)}, function(res) {
+    this.postback({
+      notice: jwt.sign(notice, config.mozPaySecret),
+    }, function(res) {
       res.status.should.equal(400);
       done();
     });
@@ -327,7 +355,9 @@ describe('mozpay.routes (handlers)', function() {
       done();
     });
 
-    this.postback({notice: jwt.encode(sentNotice, config.mozPaySecret)}, function(res) {
+    this.postback({
+      notice: jwt.sign(sentNotice, config.mozPaySecret),
+    }, function(res) {
       res.status.should.equal(200);
     });
   });
@@ -341,7 +371,7 @@ describe('mozpay.routes (handlers)', function() {
     });
 
     request.post(this.url('/chargeback'))
-      .send({notice: jwt.encode(sentNotice, config.mozPaySecret)})
+      .send({notice: jwt.sign(sentNotice, config.mozPaySecret)})
       .end(function(res) {
         res.status.should.equal(200);
       });

@@ -50,7 +50,11 @@ Configure it when your app starts up:
       mozPayRoutePrefix: '/mozpay',
       // Set a custom payment type for JWTs. You only need to override this if
       // you're working with a non-default payment provider.
-      mozPayType: 'mozilla/payments/pay/v1'
+      mozPayType: 'mozilla/payments/pay/v1',
+      // This is an optional list of JWT algorithms to support when verifying
+      // messages from the Firefox Markeplace. It defaults to HS256 only since
+      // that's what the Marketplace uses.
+      supportedAlgorithms: ['HS256'],
     });
 
 With an [express app object](http://expressjs.com/api.html#express), add your routes:
